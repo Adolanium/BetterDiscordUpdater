@@ -1,27 +1,18 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace BetterDiscordUpdater;
 
-namespace BetterDiscordUpdater
+internal class Program
 {
-    internal class Program
+    private static async Task Main(string[] args)
     {
-        static async Task Main(string[] args)
-        {
-            DiscordManager.KillDiscord();
-            Console.WriteLine("Discord killed!");
+        DiscordManager.KillDiscord();
+        Console.WriteLine("Discord killed!");
 
-            var data = await BDUpdater.GetAsar();
+        var data = await BDUpdater.GetAsar();
 
-            await BDUpdater.Update(data);
-            Console.WriteLine("Discord updated!");
+        await BDUpdater.Update(data);
+        Console.WriteLine("Discord updated!");
 
-            DiscordManager.StartDiscord();
-            Console.WriteLine("Discord started!");
-        }
+        DiscordManager.StartDiscord();
+        Console.WriteLine("Discord started!");
     }
 }

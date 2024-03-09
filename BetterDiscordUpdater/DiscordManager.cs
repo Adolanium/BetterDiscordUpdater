@@ -1,58 +1,49 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 
-namespace BetterDiscordUpdater
+namespace BetterDiscordUpdater;
+
+internal class DiscordManager
 {
-    internal class DiscordManager
+    private static readonly string ConfigFilePath = "config.json";
+
+    internal static void KillDiscord()
     {
-        private static readonly string ConfigFilePath = "config.json";
+        var config = Configuration.LoadFromFile(ConfigFilePath);
+        var processes = Process.GetProcessesByName(config.DiscordVersion);
+        foreach (var process in processes) process.Kill();
+    }
 
-        internal static void KillDiscord()
+    internal static void StartDiscord()
+    {
+        var config = Configuration.LoadFromFile(ConfigFilePath);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var discordPath = Path.Combine(localAppData, config.DiscordVersion);
+        var appDirs = Directory.GetDirectories(discordPath)
+            .Select(Path.GetFileName)
+            .Where(name => name.StartsWith("app"))
+            .OrderBy(name => name)
+            .ToList();
+
+        if (appDirs.Count > 0)
         {
-            var config = Configuration.LoadFromFile(ConfigFilePath);
-            var processes = Process.GetProcessesByName(config.DiscordVersion);
-            foreach (var process in processes)
+            var lastAppDir = appDirs.Last();
+            var discordExePath = Path.Combine(discordPath, lastAppDir, $"{config.DiscordVersion}.exe");
+
+            if (File.Exists(discordExePath))
             {
-                process.Kill();
-            }
-        }
-
-        internal static void StartDiscord()
-        {
-            var config = Configuration.LoadFromFile(ConfigFilePath);
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var discordPath = Path.Combine(localAppData, config.DiscordVersion);
-            var appDirs = Directory.GetDirectories(discordPath)
-                .Select(Path.GetFileName)
-                .Where(name => name.StartsWith("app"))
-                .OrderBy(name => name)
-                .ToList();
-
-            if (appDirs.Count > 0)
-            {
-                var lastAppDir = appDirs.Last();
-                var discordExePath = Path.Combine(discordPath, lastAppDir, $"{config.DiscordVersion}.exe");
-
-                if (File.Exists(discordExePath))
-                {
-                    var processStartInfo = new ProcessStartInfo(discordExePath);
-                    processStartInfo.UseShellExecute = true;
-                    Process.Start(processStartInfo);
-                    Environment.Exit(0);
-                }
-                else
-                {
-                    Console.WriteLine($"Discord executable not found at: {discordExePath}");
-                }
+                var processStartInfo = new ProcessStartInfo(discordExePath);
+                processStartInfo.UseShellExecute = true;
+                Process.Start(processStartInfo);
+                Environment.Exit(0);
             }
             else
             {
-                Console.WriteLine($"No app directory found in: {discordPath}");
+                Console.WriteLine($"Discord executable not found at: {discordExePath}");
             }
+        }
+        else
+        {
+            Console.WriteLine($"No app directory found in: {discordPath}");
         }
     }
 }
