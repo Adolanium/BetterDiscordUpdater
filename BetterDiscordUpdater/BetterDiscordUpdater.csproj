@@ -7,4 +7,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Content Include="CreepyDiscord.ico" />
+  </ItemGroup>
+
 </Project>
