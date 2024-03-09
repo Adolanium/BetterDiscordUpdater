@@ -8,6 +8,8 @@ namespace BetterDiscordUpdater
 {
     internal class BDUpdater
     {
+        private const string ConfigFilePath = "config.json";
+
         internal static async Task<byte[]> GetAsar()
         {
             using var client = new HttpClient();
@@ -48,19 +50,17 @@ namespace BetterDiscordUpdater
 
         internal static async Task Shims(string asarPath, string localAppData)
         {
+            var config = Configuration.LoadFromFile(ConfigFilePath);
             var shimDataPath = asarPath.Replace('\\', '/');
             var shimData = $"require(\"{shimDataPath}\");\nmodule.exports = require(\"./core.asar\");";
-
-            var shimsPath = Path.Combine(localAppData, "DiscordPTB");
+            var shimsPath = Path.Combine(localAppData, config.DiscordVersion);
             var appDirs = Directory.GetDirectories(shimsPath)
                 .Select(Path.GetFileName)
                 .Where(name => name.StartsWith("app"))
                 .OrderBy(name => name)
                 .ToList();
-
             var lastAppDir = appDirs.Last();
             var shimsFilePath = Path.Combine(shimsPath, lastAppDir, "modules", "discord_desktop_core-1", "discord_desktop_core", "index.js");
-
             await File.WriteAllTextAsync(shimsFilePath, shimData);
         }
     }

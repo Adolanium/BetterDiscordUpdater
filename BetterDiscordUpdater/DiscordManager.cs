@@ -9,10 +9,12 @@ namespace BetterDiscordUpdater
 {
     internal class DiscordManager
     {
+        private static readonly string ConfigFilePath = "config.json";
+
         internal static void KillDiscord()
         {
-            var processes = Process.GetProcessesByName("DiscordPTB");
-
+            var config = Configuration.LoadFromFile(ConfigFilePath);
+            var processes = Process.GetProcessesByName(config.DiscordVersion);
             foreach (var process in processes)
             {
                 process.Kill();
@@ -21,8 +23,9 @@ namespace BetterDiscordUpdater
 
         internal static void StartDiscord()
         {
+            var config = Configuration.LoadFromFile(ConfigFilePath);
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var discordPath = Path.Combine(localAppData, "DiscordPTB");
+            var discordPath = Path.Combine(localAppData, config.DiscordVersion);
 
             var appDirs = Directory.GetDirectories(discordPath)
                 .Select(Path.GetFileName)
