@@ -14,6 +14,10 @@ internal class Installer
             string srcFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             List<string> filesToCopy = new List<string> { "\\BetterDiscordUpdater.exe", "\\config.json" };
             string dstFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\BetterDiscordUpdater";
+            if(srcFolder == dstFolder) 
+            {
+                return;
+            }
             Directory.CreateDirectory(dstFolder);
 
             foreach (string file in filesToCopy)
