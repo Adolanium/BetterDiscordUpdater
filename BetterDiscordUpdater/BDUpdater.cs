@@ -15,13 +15,11 @@ internal class BDUpdater
         if (response.Headers.TryGetValues("x-bd-version", out var versions))
         {
             var version = versions.FirstOrDefault();
-            Console.WriteLine($"Found BetterDiscord version: {version}");
-            Console.WriteLine($"Downloading betterdiscord.asar for version {version}...");
+            Console.WriteLine($"Updating to version {version}...");
         }
         else
         {
-            Console.WriteLine("Unable to determine the BetterDiscord version from the response headers.");
-            Console.WriteLine("Downloading betterdiscord.asar...");
+            Console.WriteLine("We were unable to determine the version, continuing...");
         }
 
         return await response.Content.ReadAsByteArrayAsync();
@@ -31,12 +29,10 @@ internal class BDUpdater
     {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
         var asarPath = Path.Combine(appData, "BetterDiscord", "data", "betterdiscord.asar");
 
-        Console.WriteLine($"Writing betterdiscord.asar to: {asarPath}");
         await WriteData(asarPath, data);
-
-        Console.WriteLine("Updating shims...");
         await Shims(asarPath, localAppData);
     }
 
