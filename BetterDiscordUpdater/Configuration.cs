@@ -8,17 +8,39 @@ internal class Configuration
 
     internal static Configuration LoadFromFile(string filePath)
     {
-        if (File.Exists(filePath))
+        try
         {
-            var json = File.ReadAllText(filePath);
-            return JsonConvert.DeserializeObject<Configuration>(json);
-        }
-        else
-        {
+            if (File.Exists(filePath))
+            {
+                try
+                {
+                    var json = File.ReadAllText(filePath);
+                    return JsonConvert.DeserializeObject<Configuration>(json);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error occurred while deserializing configuration file: {ex}");
+                    return new Configuration { DiscordVersion = "Discord" };
+                }
+            }
+
             var defaultConfig = new Configuration { DiscordVersion = "Discord" };
-            var json = JsonConvert.SerializeObject(defaultConfig, Formatting.Indented);
-            File.WriteAllText(filePath, json);
-            return defaultConfig;
+            try
+            {
+                var json = JsonConvert.SerializeObject(defaultConfig, Formatting.Indented);
+                File.WriteAllText(filePath, json);
+                return defaultConfig;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error occurred while creating default configuration file: {ex}");
+                return defaultConfig;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error occurred while loading configuration: {ex}");
+            return new Configuration { DiscordVersion = "Discord" };
         }
     }
 }

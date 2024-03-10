@@ -1,39 +1,53 @@
+using System.Diagnostics;
 using Microsoft.Win32;
-using System.Collections;
-using System.IO;
-using System.Reflection;
 
 namespace BetterDiscordUpdater;
 
 internal class Installer
 {
-    internal static void SetStartup()
+    internal static void AddExeToStartup()
     {
         try
         {
-            string srcFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            List<string> filesToCopy = new List<string> { "\\BetterDiscordUpdater.exe", "\\config.json" };
-            string dstFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\BetterDiscordUpdater";
-            Directory.CreateDirectory(dstFolder);
+            var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var exePath = Path.Combine(appDataPath, "BetterDiscordUpdater", "BetterDiscordUpdater.exe");
 
-            foreach (string file in filesToCopy)
+            using (var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
-                try
+                if (key.GetValue("BetterDiscordUpdater") == null)
                 {
-                    File.Copy(srcFolder + file, dstFolder + file, true);
+                    key.SetValue("BetterDiscordUpdater", $"\"{exePath}\"");
+                    Logger.Info("BetterDiscordUpdater.exe added to startup.");
                 }
-                catch
+                else
                 {
-                    throw new Exception("could not copy files to progreamFiles");
+                    Logger.Info("BetterDiscordUpdater.exe is already in startup.");
                 }
             }
-
-            RegistryKey rk = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-            rk.SetValue("BetterDiscordUpdater", dstFolder + filesToCopy[0]);
         }
-        catch 
+        catch (Exception ex)
         {
-            throw new Exception("SetStartup failed");
+            Logger.Error($"Error occurred while adding BetterDiscordUpdater.exe to startup: {ex}");
+        }
+    }
+
+    internal static void CopyExeToAppData()
+    {
+        try
+        {
+            var currentExePath = Process.GetCurrentProcess().MainModule.FileName;
+            var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var destinationExePath = Path.Combine(appDataPath, "BetterDiscordUpdater", "BetterDiscordUpdater.exe");
+
+            if (!Directory.Exists(Path.GetDirectoryName(destinationExePath)))
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationExePath));
+
+            File.Copy(currentExePath, destinationExePath, true);
+            Logger.Info("BetterDiscordUpdater.exe copied to AppData directory.");
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error occurred while copying BetterDiscordUpdater.exe to AppData: {ex}");
         }
     }
 }

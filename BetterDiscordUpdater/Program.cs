@@ -4,19 +4,41 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-        DiscordManager.KillDiscord();
-        Console.WriteLine("Discord killed!");
-        DiscordManager.DisableStartup();
-        Console.WriteLine("Discord startup disabled!");
+        try
+        {
+            Logger.Info("Copying BetterDiscordUpdater.exe to AppData...");
+            Installer.CopyExeToAppData();
 
-        Installer.SetStartup();
-        Console.WriteLine("Better discord updater copyed to programFiles and set startup!");
-        var data = await BDUpdater.GetAsar();
+            Logger.Info("Adding BetterDiscordUpdater.exe to startup...");
+            Installer.AddExeToStartup();
 
-        await BDUpdater.Update(data);
-        Console.WriteLine("Discord updated!");
+            Logger.Info("Disabling Discord auto-run at startup...");
+            DiscordManager.DisableDiscordAutorun();
 
-        DiscordManager.StartDiscord();
-        Console.WriteLine("Discord started!");
+            Logger.Info("Updating BetterDiscord...");
+
+            Logger.Info("Killing Discord processes...");
+            DiscordManager.KillDiscord();
+
+            Logger.Info("Downloading BetterDiscord update...");
+            var data = await BDUpdater.GetAsar();
+            if (data != null)
+            {
+                Logger.Info("Applying BetterDiscord update...");
+                await BDUpdater.Update(data);
+                Logger.Info("BetterDiscord update applied successfully.");
+            }
+            else
+            {
+                Logger.Warning("Failed to download BetterDiscord update. Skipping update.");
+            }
+
+            Logger.Info("Starting Discord...");
+            DiscordManager.StartDiscord();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"An error occurred: {ex}");
+        }
     }
 }

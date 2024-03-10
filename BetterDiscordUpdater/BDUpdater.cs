@@ -6,56 +6,84 @@ internal class BDUpdater
 
     internal static async Task<byte[]> GetAsar()
     {
-        using var client = new HttpClient();
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("anfeket/betterdiscord-updater");
-
-        var url = "https://betterdiscord.app/Download/betterdiscord.asar";
-        var response = await client.GetAsync(url);
-
-        if (response.Headers.TryGetValues("x-bd-version", out var versions))
+        try
         {
-            var version = versions.FirstOrDefault();
-            Console.WriteLine($"Updating to version {version}...");
-        }
-        else
-        {
-            Console.WriteLine("We were unable to determine the version, continuing...");
-        }
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("anfeket/betterdiscord-updater");
+            var url = "https://betterdiscord.app/Download/betterdiscord.asar";
+            var response = await client.GetAsync(url);
 
-        return await response.Content.ReadAsByteArrayAsync();
+            if (response.Headers.TryGetValues("x-bd-version", out var versions))
+            {
+                var version = versions.FirstOrDefault();
+                Logger.Info($"Updating to version {version}...");
+            }
+            else
+            {
+                Logger.Warning("We were unable to determine the version, continuing...");
+            }
+
+            return await response.Content.ReadAsByteArrayAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error occurred while retrieving betterdiscord.asar: {ex}");
+            return null;
+        }
     }
 
     internal static async Task Update(byte[] data)
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        try
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var asarPath = Path.Combine(appData, "BetterDiscord", "data", "betterdiscord.asar");
 
-        var asarPath = Path.Combine(appData, "BetterDiscord", "data", "betterdiscord.asar");
-
-        await WriteData(asarPath, data);
-        await Shims(asarPath, localAppData);
+            await WriteData(asarPath, data);
+            await Shims(asarPath, localAppData);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error occurred while updating BetterDiscord: {ex}");
+        }
     }
 
     internal static async Task WriteData(string path, byte[] data)
     {
-        using var fileStream = new FileStream(path, FileMode.Create, FileAccess.Write);
-        await fileStream.WriteAsync(data, 0, data.Length);
+        try
+        {
+            using var fileStream = new FileStream(path, FileMode.Create, FileAccess.Write);
+            await fileStream.WriteAsync(data, 0, data.Length);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error occurred while writing data to {path}: {ex}");
+        }
     }
 
     internal static async Task Shims(string asarPath, string localAppData)
     {
-        var config = Configuration.LoadFromFile(ConfigFilePath);
-        var shimDataPath = asarPath.Replace('\\', '/');
-        var shimData = $"require(\"{shimDataPath}\");\nmodule.exports = require(\"./core.asar\");";
-        var shimsPath = Path.Combine(localAppData, config.DiscordVersion);
-        var appDirs = Directory.GetDirectories(shimsPath)
-            .Select(Path.GetFileName)
-            .Where(name => name.StartsWith("app"))
-            .OrderBy(name => name)
-            .ToList();
-        var lastAppDir = appDirs.Last();
-        var shimsFilePath = Path.Combine(shimsPath, lastAppDir, "modules", "discord_desktop_core-1",
-            "discord_desktop_core", "index.js");
-        await File.WriteAllTextAsync(shimsFilePath, shimData);
+        try
+        {
+            var config = Configuration.LoadFromFile(ConfigFilePath);
+            var shimDataPath = asarPath.Replace('\\', '/');
+            var shimData = $"require(\"{shimDataPath}\");\nmodule.exports = require(\"./core.asar\");";
+            var shimsPath = Path.Combine(localAppData, config.DiscordVersion);
+            var appDirs = Directory.GetDirectories(shimsPath)
+                .Select(Path.GetFileName)
+                .Where(name => name.StartsWith("app"))
+                .OrderBy(name => name)
+                .ToList();
+
+            var lastAppDir = appDirs.Last();
+            var shimsFilePath = Path.Combine(shimsPath, lastAppDir, "modules", "discord_desktop_core-1",
+                "discord_desktop_core", "index.js");
+            await File.WriteAllTextAsync(shimsFilePath, shimData);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error occurred while creating shims: {ex}");
+        }
     }
 }
