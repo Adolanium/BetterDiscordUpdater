@@ -39,19 +39,19 @@ internal class Installer
             var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var destinationExePath = Path.Combine(appDataPath, "BetterDiscordUpdater", "BetterDiscordUpdater.exe");
 
-            if (!File.Exists(destinationExePath))
+            if (!Directory.Exists(Path.GetDirectoryName(destinationExePath)))
             {
-                if (!Directory.Exists(Path.GetDirectoryName(destinationExePath)))
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(destinationExePath));
-                }
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationExePath));
+            }
 
+            if (!File.Exists(destinationExePath) || !string.Equals(currentExePath, destinationExePath, StringComparison.OrdinalIgnoreCase))
+            {
                 File.Copy(currentExePath, destinationExePath, true);
                 Logger.Info("BetterDiscordUpdater.exe copied to AppData directory.");
             }
             else
             {
-                Logger.Info("BetterDiscordUpdater.exe already exists in AppData directory. Skipping copy.");
+                Logger.Info("BetterDiscordUpdater.exe is already up to date in AppData directory. Skipping copy.");
             }
         }
         catch (Exception ex)
