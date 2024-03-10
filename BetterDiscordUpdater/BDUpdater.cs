@@ -6,29 +6,64 @@ internal class BDUpdater
 
     internal static async Task<byte[]> GetAsar()
     {
+        const int maxRetries = 3;
+        const int retryDelay = 5000;
+
+        for (int retry = 0; retry < maxRetries; retry++)
+        {
+            try
+            {
+                if (!await CheckInternetConnectivity())
+                {
+                    Logger.Warning($"No internet connectivity. Retrying in {retryDelay / 1000} seconds... (Attempt {retry + 1}/{maxRetries})");
+                    await Task.Delay(retryDelay);
+                    continue;
+                }
+
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("anfeket/betterdiscord-updater");
+                var url = "https://betterdiscord.app/Download/betterdiscord.asar";
+                var response = await client.GetAsync(url);
+
+                if (response.Headers.TryGetValues("x-bd-version", out var versions))
+                {
+                    var version = versions.FirstOrDefault();
+                    Logger.Info($"Updating to version {version}...");
+                }
+                else
+                {
+                    Logger.Warning("We were unable to determine the version, continuing...");
+                }
+
+                return await response.Content.ReadAsByteArrayAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error occurred while retrieving betterdiscord.asar: {ex}");
+
+                if (retry < maxRetries - 1)
+                {
+                    Logger.Warning($"Retrying in {retryDelay / 1000} seconds... (Attempt {retry + 1}/{maxRetries})");
+                    await Task.Delay(retryDelay);
+                }
+            }
+        }
+
+        Logger.Error("Failed to retrieve betterdiscord.asar after multiple attempts.");
+        return null;
+    }
+
+    private static async Task<bool> CheckInternetConnectivity()
+    {
         try
         {
             using var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("anfeket/betterdiscord-updater");
-            var url = "https://betterdiscord.app/Download/betterdiscord.asar";
-            var response = await client.GetAsync(url);
-
-            if (response.Headers.TryGetValues("x-bd-version", out var versions))
-            {
-                var version = versions.FirstOrDefault();
-                Logger.Info($"Updating to version {version}...");
-            }
-            else
-            {
-                Logger.Warning("We were unable to determine the version, continuing...");
-            }
-
-            return await response.Content.ReadAsByteArrayAsync();
+            var response = await client.GetAsync("https://betterdiscord.app");
+            return response.IsSuccessStatusCode;
         }
-        catch (Exception ex)
+        catch
         {
-            Logger.Error($"Error occurred while retrieving betterdiscord.asar: {ex}");
-            return null;
+            return false;
         }
     }
 
