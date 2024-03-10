@@ -9,6 +9,9 @@ internal class Program
     {
         try
         {
+            Console.WriteLine("Disabling Discord auto-run at startup...");
+            DiscordManager.DisableDiscordAutorun();
+
             Console.WriteLine("Copying BetterDiscordUpdater.exe to AppData...");
             CopyExeToAppData();
 
@@ -28,9 +31,6 @@ internal class Program
             Console.WriteLine("Applying BetterDiscord update...");
             await BDUpdater.Update(data);
             Console.WriteLine("BetterDiscord update applied successfully.");
-
-            Console.WriteLine("Disabling Discord auto-run at startup...");
-            DiscordManager.DisableDiscordAutorun();
 
             Console.WriteLine("Starting Discord...");
             DiscordManager.StartDiscord();
