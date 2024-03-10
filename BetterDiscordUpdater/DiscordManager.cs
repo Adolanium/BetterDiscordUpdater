@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Win32;
+using System.Diagnostics;
 
 namespace BetterDiscordUpdater;
 
@@ -45,5 +46,11 @@ internal class DiscordManager
         {
             Console.WriteLine($"No app directory found in: {discordPath}");
         }
+    }
+    
+    internal static void DisableStartup()
+    {
+        RegistryKey rk = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+        rk.DeleteValue("Discord", false);
     }
 }
