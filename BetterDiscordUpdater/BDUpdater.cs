@@ -1,124 +1,86 @@
-﻿namespace BetterDiscordUpdater;
+﻿using System;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
 
-internal class BDUpdater
+namespace BetterDiscordUpdater
 {
-    private const string ConfigFilePath = "config.json";
-
-    internal static async Task<byte[]> GetAsar()
+    internal class BDUpdater
     {
-        const int maxRetries = 3;
-        const int retryDelay = 5000;
+        private const string ConfigFilePath = "config.json";
 
-        for (int retry = 0; retry < maxRetries; retry++)
+        internal static async Task<byte[]> GetAsar()
         {
-            try
+            const int maxRetries = 3;
+            const int retryDelay = 5000;
+            for (int retry = 0; retry < maxRetries; retry++)
             {
-                if (!await CheckInternetConnectivity())
+                try
                 {
-                    Logger.Warning($"No internet connectivity. Retrying in {retryDelay / 1000} seconds... (Attempt {retry + 1}/{maxRetries})");
-                    await Task.Delay(retryDelay);
-                    continue;
+                    using var client = new HttpClient();
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("anfeket/betterdiscord-updater");
+                    var url = "https://betterdiscord.app/Download/betterdiscord.asar";
+                    var response = await client.GetAsync(url);
+                    return await response.Content.ReadAsByteArrayAsync();
                 }
-
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("anfeket/betterdiscord-updater");
-                var url = "https://betterdiscord.app/Download/betterdiscord.asar";
-                var response = await client.GetAsync(url);
-
-                if (response.Headers.TryGetValues("x-bd-version", out var versions))
+                catch
                 {
-                    var version = versions.FirstOrDefault();
-                    Logger.Info($"Updating to version {version}...");
-                }
-                else
-                {
-                    Logger.Warning("We were unable to determine the version, continuing...");
-                }
-
-                return await response.Content.ReadAsByteArrayAsync();
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error occurred while retrieving betterdiscord.asar: {ex}");
-
-                if (retry < maxRetries - 1)
-                {
-                    Logger.Warning($"Retrying in {retryDelay / 1000} seconds... (Attempt {retry + 1}/{maxRetries})");
-                    await Task.Delay(retryDelay);
+                    if (retry < maxRetries - 1)
+                        await Task.Delay(retryDelay);
                 }
             }
+            return null;
         }
 
-        Logger.Error("Failed to retrieve betterdiscord.asar after multiple attempts.");
-        return null;
-    }
-
-    private static async Task<bool> CheckInternetConnectivity()
-    {
-        try
-        {
-            using var client = new HttpClient();
-            var response = await client.GetAsync("https://betterdiscord.app");
-            return response.IsSuccessStatusCode;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    internal static async Task Update(byte[] data)
-    {
-        try
+        internal static async Task<bool> Update(byte[] data)
         {
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var asarPath = Path.Combine(appData, "BetterDiscord", "data", "betterdiscord.asar");
-
-            await WriteData(asarPath, data);
-            await Shims(asarPath, localAppData);
+            if (!ChecksumsMatch(asarPath, data))
+            {
+                await WriteData(asarPath, data);
+                await Shims(asarPath, localAppData);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
-        catch (Exception ex)
-        {
-            Logger.Error($"Error occurred while updating BetterDiscord: {ex}");
-        }
-    }
 
-    internal static async Task WriteData(string path, byte[] data)
-    {
-        try
+        private static async Task WriteData(string path, byte[] data)
         {
             using var fileStream = new FileStream(path, FileMode.Create, FileAccess.Write);
             await fileStream.WriteAsync(data, 0, data.Length);
         }
-        catch (Exception ex)
-        {
-            Logger.Error($"Error occurred while writing data to {path}: {ex}");
-        }
-    }
 
-    internal static async Task Shims(string asarPath, string localAppData)
-    {
-        try
+        private static async Task Shims(string asarPath, string localAppData)
         {
             var config = Configuration.LoadFromFile(ConfigFilePath);
             var shimDataPath = asarPath.Replace('\\', '/');
             var shimData = $"require(\"{shimDataPath}\");\nmodule.exports = require(\"./core.asar\");";
             var shimsPath = Path.Combine(localAppData, config.DiscordVersion);
-            var appDirs = Directory.GetDirectories(shimsPath)
-                .Select(Path.GetFileName)
-                .Where(name => name.StartsWith("app"))
-                .OrderBy(name => name)
-                .ToList();
-
+            var appDirs = Directory.GetDirectories(shimsPath).Select(Path.GetFileName).Where(name => name.StartsWith("app")).OrderBy(name => name).ToList();
             var lastAppDir = appDirs.Last();
-            var shimsFilePath = Path.Combine(shimsPath, lastAppDir, "modules", "discord_desktop_core-1",
-                "discord_desktop_core", "index.js");
+            var shimsFilePath = Path.Combine(shimsPath, lastAppDir, "modules", "discord_desktop_core-1", "discord_desktop_core", "index.js");
             await File.WriteAllTextAsync(shimsFilePath, shimData);
         }
-        catch (Exception ex)
+
+        private static bool ChecksumsMatch(string filePath, byte[] newData)
         {
-            Logger.Error($"Error occurred while creating shims: {ex}");
+            if (!File.Exists(filePath)) return false;
+            byte[] existingData = File.ReadAllBytes(filePath);
+            return GenerateChecksum(existingData) == GenerateChecksum(newData);
+        }
+
+        private static string GenerateChecksum(byte[] data)
+        {
+            using var sha256 = SHA256.Create();
+            byte[] hashBytes = sha256.ComputeHash(data);
+            return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
     }
 }

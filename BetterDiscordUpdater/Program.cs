@@ -15,8 +15,6 @@ internal class Program
             Logger.Info("Disabling Discord auto-run at startup...");
             DiscordManager.DisableDiscordAutorun();
 
-            Logger.Info("Updating BetterDiscord...");
-
             Logger.Info("Killing Discord processes...");
             DiscordManager.KillDiscord();
 
@@ -24,9 +22,15 @@ internal class Program
             var data = await BDUpdater.GetAsar();
             if (data != null)
             {
-                Logger.Info("Applying BetterDiscord update...");
-                await BDUpdater.Update(data);
-                Logger.Info("BetterDiscord update applied successfully.");
+                var updateResult = await BDUpdater.Update(data);
+                if (updateResult)
+                {
+                    Logger.Info("BetterDiscord update applied successfully.");
+                }
+                else
+                {
+                    Logger.Info("Downloaded BetterDiscord update is identical to the current version. Skipping update.");
+                }
             }
             else
             {
